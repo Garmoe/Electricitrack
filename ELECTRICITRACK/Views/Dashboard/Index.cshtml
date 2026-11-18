@@ -1,0 +1,180 @@
+@model ELECTRICITRACK.ViewModels.DashboardViewModel
+@{
+    ViewData["Title"] = "Household overview";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>Household overview</h1>
+        <p>Know what uses power. See what it costs.</p>
+    </div>
+    <a class="button button-primary" asp-controller="Appliances" asp-action="Index" asp-route-create="true">
+        <span aria-hidden="true">＋</span> Add appliance
+    </a>
+</section>
+
+<section class="metric-grid" aria-label="Household summary">
+    <article class="card metric-card">
+        <span class="metric-label">Estimated monthly consumption</span>
+        <strong class="metric-value">@Model.TotalKwh.ToString("N1") kWh</strong>
+        <span class="metric-note">@((Model.TotalKwh / 30m).ToString("N2")) kWh per day · 30-day estimate</span>
+    </article>
+    <article class="card metric-card">
+        <span class="metric-label">Estimated monthly cost</span>
+        <strong class="metric-value accent-text">₱@Model.TotalCost.ToString("N2")</strong>
+        <span class="metric-note">Based on ₱@Model.RatePerKwh.ToString("N2") per kWh</span>
+    </article>
+    <article class="card metric-card">
+        <span class="metric-label">Appliances tracked</span>
+        <strong class="metric-value">@Model.Shares.Count</strong>
+        @if (Model.TotalCost <= Model.MonthlyBudget)
+        {
+            <span class="metric-note">Within your ₱@Model.MonthlyBudget.ToString("N2") monthly budget</span>
+        }
+        else
+        {
+            <span class="metric-note over-budget">₱@((Model.TotalCost - Model.MonthlyBudget).ToString("N2")) over your monthly budget</span>
+        }
+    </article>
+</section>
+
+<section class="card breakdown-card">
+    <div class="contribution">
+        <div class="section-title-row">
+            <div>
+                <h2>Where your electricity goes</h2>
+                <span class="muted small">Monthly breakdown by appliance share</span>
+            </div>
+            <span class="badge-pill">@Model.Shares.Count categories</span>
+        </div>
+        @if (Model.TotalKwh > 0)
+        {
+            <div class="consumption-bar" role="img" aria-label="Monthly consumption share by appliance">
+                @foreach (var share in Model.Shares)
+                {
+                    <span class="bar-segment" title="@share.Name — @share.Kwh.ToString("N1") kWh (@share.Percentage.ToString("N1")%)"
+                          style="flex-grow:@share.Percentage;background-color:@share.Color"></span>
+                }
+            </div>
+            <div class="legend">
+                @foreach (var share in Model.Shares)
+                {
+                    <span class="legend-item" title="@share.Name: @share.Kwh.ToString("N1") kWh">
+                        <i style="background-color:@share.Color"></i>
+                        <span class="legend-name">@share.Name</span>
+                        <strong class="legend-pct">@share.Percentage.ToString("N1")%</strong>
+                    </span>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="empty-note">Add appliance details to see your consumption breakdown.</p>
+        }
+    </div>
+    <div class="largest-contributor">
+        <div class="top-consumer-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            <span>Top Consumer</span>
+        </div>
+        @if (Model.LargestContributor is not null)
+        {
+            <strong class="top-consumer-name">@Model.LargestContributor.Name</strong>
+            <div class="top-consumer-stats">
+                <span class="strong">@ConsumptionCalculator.MonthlyKwh(Model.LargestContributor).ToString("N1") kWh</span>
+                <span class="muted">· @((Model.TotalKwh == 0 ? 0 : ConsumptionCalculator.MonthlyKwh(Model.LargestContributor) / Model.TotalKwh * 100m).ToString("N1"))% of total</span>
+            </div>
+            <a class="button button-secondary top-consumer-action" asp-controller="Simulation" asp-action="Index">
+                <span>Simulate lower usage</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </a>
+        }
+        else
+        {
+            <span class="muted">No appliances yet</span>
+        }
+    </div>
+</section>
+
+<section class="card table-card">
+    <div class="table-toolbar">
+        <div class="table-heading">
+            <h2>Your appliances</h2>
+            <span class="muted small">@Model.Appliances.Count @(Model.Appliances.Count == 1 ? "appliance" : "appliances")</span>
+        </div>
+        <form class="table-tools" asp-controller="Dashboard" asp-action="Index" method="get">
+            <label class="search-box">
+                <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="search" name="search" value="@Model.Search" placeholder="Search prefix (e.g. Air, Ref)" aria-label="Search appliance name prefix" />
+            </label>
+            <div class="sort-select-wrapper">
+                <select name="sort" class="sort-select" aria-label="Sort appliances" onchange="this.form.submit()">
+                    <option value="high-to-low" selected="@(Model.Sort == "high-to-low" ? "selected" : null)">Consumption: High to Low</option>
+                    <option value="low-to-high" selected="@(Model.Sort == "low-to-high" ? "selected" : null)">Consumption: Low to High</option>
+                    <option value="name-asc" selected="@(Model.Sort == "name-asc" ? "selected" : null)">Name: A to Z</option>
+                    <option value="name-desc" selected="@(Model.Sort == "name-desc" ? "selected" : null)">Name: Z to A</option>
+                    <option value="daily-hours" selected="@(Model.Sort == "daily-hours" ? "selected" : null)">Daily Use: Most to Least</option>
+                </select>
+                <svg class="select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model.Search))
+            {
+                <a class="button button-secondary clear-search-button" asp-controller="Dashboard" asp-action="Index" asp-route-sort="@Model.Sort">Clear</a>
+            }
+        </form>
+    </div>
+    @if (Model.Appliances.Count == 0)
+    {
+        <div class="empty-state">
+            <strong>@(string.IsNullOrWhiteSpace(Model.Search) ? "No appliances yet" : "No matching appliances")</strong>
+            <span>@(string.IsNullOrWhiteSpace(Model.Search) ? "Add an appliance to start estimating your household use." : "Try another appliance name prefix or clear the search.")</span>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th class="col-appliance">Appliance</th>
+                        <th class="col-power text-right">Power</th>
+                        <th class="col-daily text-right">Daily Use</th>
+                        <th class="col-days text-right">Days / mo.</th>
+                        <th class="col-kwh text-right accent-text">Monthly kWh</th>
+                        <th class="col-cost text-right">Monthly Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var appliance in Model.Appliances)
+                    {
+                        <tr>
+                            <td class="col-appliance">
+                                <a class="table-link strong" asp-controller="Appliances" asp-action="Index" asp-route-id="@appliance.Id">@appliance.Name</a>
+                                @if (appliance.IsReference)
+                                {
+                                    <span class="reference-badge">Reference</span>
+                                }
+                            </td>
+                            <td class="col-power text-right"><span class="tabular-num">@appliance.PowerWatts.ToString("N0")</span> <span class="muted small">W</span></td>
+                            <td class="col-daily text-right"><span class="tabular-num">@appliance.HoursPerDay.ToString("0.##")</span> <span class="muted small">h/day</span></td>
+                            <td class="col-days text-right"><span class="tabular-num">@appliance.DaysPerMonth</span> <span class="muted small">d</span></td>
+                            <td class="col-kwh text-right strong accent-text"><span class="tabular-num">@ConsumptionCalculator.MonthlyKwh(appliance).ToString("N1")</span> <span class="small">kWh</span></td>
+                            <td class="col-cost text-right strong"><span class="tabular-num">₱@ConsumptionCalculator.MonthlyCost(appliance, Model.RatePerKwh).ToString("N2")</span></td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="4" class="tfoot-label">Total Monthly Consumption</th>
+                        <th class="col-kwh text-right accent-text strong"><span class="tabular-num">@Model.TotalKwh.ToString("N1")</span> <span class="small">kWh</span></th>
+                        <th class="col-cost text-right strong"><span class="tabular-num">₱@Model.TotalCost.ToString("N2")</span></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+</section>
+<p class="footnote">
+    <svg class="info-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    Estimates use the appliance details and electricity rate you entered. Actual bills may include other distribution charges and taxes.
+</p>

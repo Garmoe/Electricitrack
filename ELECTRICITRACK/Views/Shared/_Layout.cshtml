@@ -1,0 +1,86 @@
+@{
+    var activeController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var activePage = ViewContext.RouteData.Values["action"]?.ToString();
+    var pageName = activeController switch
+    {
+        "Dashboard" => "Overview",
+        "Appliances" => "Appliances",
+        "Simulation" => "Simulation",
+        "Settings" => "Settings",
+        _ => "Overview"
+    };
+    var electricityRate = ViewData["ElectricityRate"] ?? "12.00";
+    var monthlyBudget = ViewData["MonthlyBudget"] ?? "5,000.00";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f8fa" />
+    <title>@ViewData["Title"] · ELECTRICITRACK</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <a class="brand" asp-controller="Dashboard" asp-action="Index" aria-label="ELECTRICITRACK home">
+                <svg class="brand-mark-svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                <span>ELECTRICITRACK</span>
+            </a>
+            <div class="household-block">
+                <div class="eyebrow">MY HOUSEHOLD</div>
+                <div class="household-name">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    Santos home
+                </div>
+            </div>
+            <nav class="main-nav" aria-label="Main navigation">
+                <a class="nav-link @(activeController == "Dashboard" ? "active" : "")"
+                   asp-controller="Dashboard" asp-action="Index">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    </span> Overview
+                </a>
+                <a class="nav-link @(activeController == "Appliances" ? "active" : "")"
+                   asp-controller="Appliances" asp-action="Index">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>
+                    </span> Appliances
+                </a>
+                <a class="nav-link @(activeController == "Simulation" ? "active" : "")"
+                   asp-controller="Simulation" asp-action="Index">
+                    <span class="nav-icon" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+                    </span> Simulation
+                </a>
+            </nav>
+            <a class="rate-note" asp-controller="Settings" asp-action="Index">
+                <span class="rate-divider"></span>
+                <span class="rate-label">Household electricity rate</span>
+                <strong>₱@electricityRate / kWh</strong>
+                <span class="rate-source">Budget: ₱@monthlyBudget / month · Edit settings</span>
+            </a>
+        </aside>
+
+        <div class="workspace">
+            <header class="topbar">
+                <div class="breadcrumb">Household <span>/</span> @pageName</div>
+                <div class="profile">
+                    <span>Santos home</span>
+                    <span class="avatar" aria-label="Profile initials MS">MS</span>
+                </div>
+            </header>
+            <main class="page-content">
+                @if (TempData["Notice"] is string notice)
+                {
+                    <div class="notice" role="status">@notice</div>
+                }
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+    @await RenderSectionAsync("Scripts", required: false)
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

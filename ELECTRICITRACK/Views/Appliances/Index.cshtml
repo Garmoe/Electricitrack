@@ -1,0 +1,137 @@
+@model ELECTRICITRACK.ViewModels.AppliancePageViewModel
+@{
+    ViewData["Title"] = "Appliances";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>Appliances</h1>
+        <p>Keep your household usage up to date.</p>
+    </div>
+</section>
+<div class="appliance-layout">
+    <aside class="card appliance-list-card">
+        <div class="list-card-heading"><strong>My appliances</strong><span>@Model.Appliances.Count total</span></div>
+        <nav class="appliance-list" aria-label="Your appliances">
+            @foreach (var item in Model.Appliances)
+            {
+                <a class="appliance-list-item @(!Model.IsCreating && item.Id == Model.Appliance.Id ? "selected" : "")"
+                   asp-action="Index" asp-route-id="@item.Id">
+                    <span>@item.Name</span>
+                    @if (!Model.IsCreating && item.Id == Model.Appliance.Id)
+                    {
+                        <span class="list-chevron" aria-hidden="true">›</span>
+                    }
+                </a>
+            }
+        </nav>
+        <a class="add-appliance-link" asp-action="Index" asp-route-create="true"><span aria-hidden="true">＋</span> Add appliance</a>
+    </aside>
+
+    <div class="appliance-editor-column">
+        <section class="card editor-card">
+            <div class="editor-heading">
+                <div>
+                    <h2>@(Model.IsCreating ? "Add appliance" : "Edit appliance")</h2>
+                    <p>Enter the details you use at home. All fields are required.</p>
+                </div>
+                @if (Model.Appliance.IsReference && !Model.IsCreating)
+                {
+                    <span class="muted small">Sample reference data</span>
+                }
+                else if (!Model.IsCreating)
+                {
+                    <span class="muted small">Saved appliance</span>
+                }
+            </div>
+            <form asp-action="Save" method="post" class="appliance-form" id="appliance-form">
+                <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+                <input type="hidden" id="Id" name="Id" value="@Model.Appliance.Id" />
+                <div class="form-field full">
+                    <label for="Name">Appliance name</label>
+                    <input id="Name" name="Name" value="@Model.Appliance.Name" maxlength="80" required autocomplete="off" />
+                    <span class="field-error">@Html.ValidationMessage("Name")</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="PowerWatts">Power rating</label>
+                        <div class="input-with-unit">
+                            <input id="PowerWatts" name="PowerWatts" type="number" min="0.1" max="100000" step="any" value="@Model.Appliance.PowerWatts.ToString(System.Globalization.CultureInfo.InvariantCulture)" required data-estimate-input />
+                            <span>W (watts)</span>
+                        </div>
+                        <span class="field-help">Check the appliance label or manual.</span>
+                        <span class="field-error">@Html.ValidationMessage("PowerWatts")</span>
+                    </div>
+                    <div class="form-field">
+                        <label for="HoursPerDay">Hours used per day</label>
+                        <div class="input-with-unit">
+                            <input id="HoursPerDay" name="HoursPerDay" type="number" min="0" max="24" step="0.5" value="@Model.Appliance.HoursPerDay.ToString(System.Globalization.CultureInfo.InvariantCulture)" required data-estimate-input />
+                            <span>hours / day</span>
+                        </div>
+                        <span class="field-help">Enter active use, from 0 to 24 hours.</span>
+                        <span class="field-error">@Html.ValidationMessage("HoursPerDay")</span>
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="DaysPerMonth">Days used per month</label>
+                        <div class="input-with-unit">
+                            <input id="DaysPerMonth" name="DaysPerMonth" type="number" min="1" max="31" step="1" value="@Model.Appliance.DaysPerMonth" required data-estimate-input />
+                            <span>days / month</span>
+                        </div>
+                        <span class="field-error">@Html.ValidationMessage("DaysPerMonth")</span>
+                    </div>
+                    <div class="estimate-inline">
+                        <span class="muted small">Estimated monthly use</span>
+                        <strong><span data-monthly-kwh>@Model.MonthlyKwh.ToString("N1")</span> kWh</strong>
+                        <span class="muted small">At current rate: ₱<span data-monthly-cost>@Model.MonthlyCost.ToString("N2")</span></span>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    @if (!Model.IsCreating)
+                    {
+                        <button class="text-button delete-button" type="submit" form="delete-appliance-form"
+                                onclick="return confirm('Delete this appliance?')">Delete appliance</button>
+                    }
+                    else
+                    {
+                        <a class="text-button" asp-action="Index">Cancel</a>
+                    }
+                    <div class="button-row">
+                        @if (!Model.IsCreating)
+                        {
+                            <a class="button button-secondary" asp-action="Index" asp-route-id="@Model.Appliance.Id">Cancel</a>
+                        }
+                        <button class="button button-primary" type="submit">@(Model.IsCreating ? "Add appliance" : "Save changes")</button>
+                    </div>
+                </div>
+            </form>
+            @if (!Model.IsCreating)
+            {
+                <form id="delete-appliance-form" asp-action="Delete" method="post" class="hidden-form">
+                    <input type="hidden" name="id" value="@Model.Appliance.Id" />
+                    @Html.AntiForgeryToken()
+                </form>
+            }
+        </section>
+        <section class="estimate-banner">
+            <div>
+                <span class="estimate-title">Monthly estimate</span>
+                <strong>@Model.MonthlyKwh.ToString("N1") kWh</strong>
+            </div>
+            <strong class="estimate-cost">₱@Model.MonthlyCost.ToString("N2")</strong>
+            <span class="muted small">30-day month</span>
+            <p>Power × hours per day × days used × ₱@Model.RatePerKwh.ToString("N2") per kWh</p>
+        </section>
+    </div>
+</div>
+<p class="footnote">
+    <svg class="info-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    Sample appliance values are illustrative references. Check the appliance label or manual for your actual rating.
+</p>
+
+@section Scripts {
+    <script>
+        window.electricitrackRate = @Model.RatePerKwh.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    </script>
+}

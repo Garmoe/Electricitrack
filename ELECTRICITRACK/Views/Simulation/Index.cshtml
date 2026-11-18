@@ -1,0 +1,137 @@
+@model ELECTRICITRACK.ViewModels.SimulationViewModel
+@{
+    ViewData["Title"] = "Usage simulation";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>What-if simulation</h1>
+        <p>Try different hours of use before changing your routine.</p>
+    </div>
+    <a class="button button-secondary" asp-action="Index"><span aria-hidden="true">↻</span> Reset to current</a>
+</section>
+
+<div class="scenario-context">
+    <span><span class="accent-text" aria-hidden="true">☷</span> Lower daily usage <span class="muted">· Preview only</span></span>
+    <span class="muted small">30-day estimate · ₱@Model.RatePerKwh.ToString("N2") / kWh</span>
+</div>
+
+<form asp-action="Apply" method="post" id="simulation-form">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+    <input type="hidden" id="simulation-rate" value="@Model.RatePerKwh.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+    <input type="hidden" id="simulation-budget" value="@Model.MonthlyBudget.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+    <div class="simulation-grid">
+        <div class="simulation-inputs">
+            <section class="card adjustment-card">
+                <div class="card-intro">
+                    <h2>Adjust daily hours</h2>
+                    <p>Change hours from 0 to 24. Power ratings and days used stay the same.</p>
+                </div>
+                <div class="adjustment-table">
+                    <div class="adjustment-head">
+                        <span>Appliance</span><span class="centered">Current<br />h/day</span>
+                        <span class="centered accent-text">Adjusted<br />h/day</span><span class="text-right">Saved / mo.</span>
+                    </div>
+                    @for (var index = 0; index < Model.Rows.Count; index++)
+                    {
+                        var row = Model.Rows[index];
+                        <div class="adjustment-row" data-adjustment-row
+                             data-watts="@row.Appliance.PowerWatts.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                             data-days="@row.Appliance.DaysPerMonth"
+                             data-current-hours="@row.Appliance.HoursPerDay.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                             data-adjusted-hours="@row.AdjustedHours.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                            <input type="hidden" name="Items[@index].Id" value="@row.Appliance.Id" />
+                            <div class="appliance-cell">
+                                <strong>@row.Appliance.Name</strong>
+                                <span>@row.Appliance.PowerWatts.ToString("N0") W · @row.Appliance.DaysPerMonth days/month</span>
+                            </div>
+                            <span class="current-hours">@row.Appliance.HoursPerDay.ToString("0.##")</span>
+                            <div class="stepper">
+                                <button type="button" class="step-button" data-step="-0.5" aria-label="Decrease @row.Appliance.Name hours">−</button>
+                                <input class="hours-input" type="number" name="Items[@index].Hours" min="0" max="24" step="0.5"
+                                       value="@row.AdjustedHours.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)"
+                                       aria-label="@row.Appliance.Name adjusted hours per day" />
+                                <button type="button" class="step-button" data-step="0.5" aria-label="Increase @row.Appliance.Name hours">＋</button>
+                            </div>
+                            <span class="saved-value @(row.SavedCost > 0 ? "accent-text" : "muted")" data-row-saving>
+                                @(row.SavedCost > 0 ? $"₱{row.SavedCost:N2}" : "—")
+                            </span>
+                        </div>
+                    }
+                    <div class="adjustment-footer">
+                        <span><span data-adjusted-count>0</span> of @Model.Rows.Count appliances adjusted</span>
+                        <span>Estimates update automatically</span>
+                    </div>
+                </div>
+            </section>
+            <div class="safety-note">
+                <svg class="info-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <span>This is a preview. Your saved appliance details won’t change unless you apply this scenario.</span>
+            </div>
+        </div>
+        <aside class="simulation-results">
+            <section class="card impact-card">
+                <h2>Estimated monthly impact</h2>
+                <div class="impact-block">
+                    <span class="muted small">Current usage</span>
+                    <strong>₱<span data-current-cost>@Model.CurrentCost.ToString("N2")</span></strong>
+                    <span class="muted small"><span data-current-kwh>@Model.CurrentKwh.ToString("N1")</span> kWh / month</span>
+                </div>
+                <div class="impact-divider"></div>
+                <div class="impact-block">
+                    <span class="muted small">With adjusted hours</span>
+                    <strong class="accent-text">₱<span data-adjusted-cost>@Model.AdjustedCost.ToString("N2")</span></strong>
+                    <span class="muted small"><span data-adjusted-kwh>@Model.AdjustedKwh.ToString("N1")</span> kWh / month</span>
+                </div>
+                <div class="savings-box">
+                    <span>You could save each month</span>
+                    <strong>₱<span data-savings>@Math.Max(0, Model.CurrentCost - Model.AdjustedCost).ToString("N2")</span></strong>
+                    <span><span data-kwh-saved>@Math.Max(0, Model.CurrentKwh - Model.AdjustedKwh).ToString("N1")</span> kWh less · <span data-reduction>@((Model.CurrentCost == 0 ? 0m : Math.Max(0, (Model.CurrentCost - Model.AdjustedCost) / Model.CurrentCost * 100m)).ToString("N1"))</span>% reduction</span>
+                </div>
+                <button class="button button-primary apply-button" type="submit">Apply to my appliances</button>
+            </section>
+            <section class="card budget-guidance" data-budget-guidance
+                     data-guidance-id="@Model.GuidanceAppliance?.Id"
+                     data-guidance-name="@Model.GuidanceAppliance?.Name"
+                     data-guidance-watts="@Model.GuidanceAppliance?.PowerWatts.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                     data-guidance-days="@Model.GuidanceAppliance?.DaysPerMonth">
+                <div class="section-title-row">
+                    <h2>Budget check</h2>
+                    <a class="muted small" asp-controller="Settings" asp-action="Index">Edit budget</a>
+                </div>
+                <div class="budget-row"><span>Monthly budget</span><strong>₱<span data-budget-value>@Model.MonthlyBudget.ToString("N2")</span></strong></div>
+                <div class="budget-row"><span>Adjusted estimate</span><strong class="budget-current">₱<span data-budget-estimate>@Model.AdjustedCost.ToString("N2")</span></strong></div>
+                <p class="budget-message" data-budget-message>
+                    @if (Model.AdjustedCost <= Model.MonthlyBudget)
+                    {
+                        <span>Within budget by ₱@((Model.MonthlyBudget - Model.AdjustedCost).ToString("N2")).</span>
+                    }
+                    else
+                    {
+                        <span class="over-budget">Over budget by ₱@((Model.AdjustedCost - Model.MonthlyBudget).ToString("N2")).</span>
+                    }
+                </p>
+                @if (Model.GuidanceAppliance is not null)
+                {
+                    <div class="hours-guidance">
+                        <span class="muted small">To stay within budget, try up to</span>
+                        <strong><span data-recommended-hours>@Model.RecommendedHours.ToString("0.#")</span> h/day</strong>
+                        <span class="muted small">for @Model.GuidanceAppliance.Name, keeping other adjusted hours as shown.</span>
+                    </div>
+                }
+            </section>
+            <section class="card consumption-card">
+                <h2>Monthly consumption</h2>
+                <div class="progress-label"><span>Current</span><span><span data-current-bar-label>@Model.CurrentKwh.ToString("N1")</span> kWh</span></div>
+                <div class="progress-track"><span class="progress-fill current-fill"></span></div>
+                <div class="progress-label"><span>Adjusted</span><span><span data-adjusted-bar-label>@Model.AdjustedKwh.ToString("N1")</span> kWh</span></div>
+                <div class="progress-track"><span class="progress-fill adjusted-fill"></span></div>
+            </section>
+        </aside>
+    </div>
+</form>
+<p class="footnote">
+    <svg class="info-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    Estimates use your appliance details and entered rate. Actual bills may include other charges.
+</p>
